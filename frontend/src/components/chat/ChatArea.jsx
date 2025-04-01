@@ -6,7 +6,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import ThreadView from './ThreadView';
 
-const ChatArea = () => {
+const ChatArea = ({ initialMessageId, isChannelFetched = false }) => {
   const { channelId } = useParams();
   const { 
     joinChannel, 
@@ -20,28 +20,26 @@ const ChatArea = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [activeThread, setActiveThread] = useState(null);
+  const [activeThread, setActiveThread] = useState(initialMessageId || null);
 
-  // チャンネル情報の取得
+  // チャンネル情報の取得 (親コンポーネントで取得済みの場合はスキップ)
   useEffect(() => {
     const fetchChannel = async () => {
+      if (!channelId || isChannelFetched) return;
+      
       try {
+        console.log('ChatAreaでチャンネル情報を取得します'); // デバッグ用
         const response = await api.get(`/api/channels/${channelId}`);
+        console.log('ChatArea: チャンネル取得成功', response.data); // デバッグ用
         setCurrentChannel(response.data);
       } catch (err) {
-        console.error('チャンネル取得エラー:', err);
+        console.error('ChatArea: チャンネル取得エラー:', err);
         setError('チャンネルの読み込みに失敗しました');
       }
     };
 
-    if (channelId) {
-      fetchChannel();
-    }
-
-    return () => {
-      setCurrentChannel(null);
-    };
-  }, [channelId, setCurrentChannel]);
+    fetchChannel();
+  }, [channelId, setCurrentChannel, isChannelFetched]);
 
   // メッセージの取得
   useEffect(() => {
@@ -50,11 +48,13 @@ const ChatArea = () => {
       
       setLoading(true);
       try {
+        console.log('メッセージ取得開始: チャンネルID =', channelId); // デバッグ用
         const response = await api.get(`/api/messages/channel/${channelId}`, {
           params: { page, limit: 50 }
         });
         
         const { messages: newMessages, pagination } = response.data;
+        console.log('メッセージ取得成功', newMessages.length); // デバッグ用
         
         if (page === 1) {
           setMessages(newMessages);
@@ -71,21 +71,10 @@ const ChatArea = () => {
       }
     };
 
-    fetchMessages();
-  }, [channelId, page]);
-
-  // WebSocketでのチャンネル参加/退出
-  useEffect(() => {
-    if (channelId) {
-      joinChannel(channelId);
+    if (currentChannel) {
+      fetchMessages();
     }
-
-    return () => {
-      if (channelId) {
-        leaveChannel(channelId);
-      }
-    };
-  }, [channelId, joinChannel, leaveChannel]);
+  }, [channelId, page, currentChannel]);
 
   // 新しいメッセージの追加
   const handleNewMessage = (message) => {
@@ -124,7 +113,7 @@ const ChatArea = () => {
   };
 
   if (!currentChannel) {
-    return <div className="loading">読み込み中...</div>;
+    return <div className="loading">チャンネル情報を読み込んでいます...</div>;
   }
 
   return (

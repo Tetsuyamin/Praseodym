@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '../contexts/AppContext';
 import ChatArea from '../components/chat/ChatArea';
 import ChannelInfo from '../components/chat/ChannelInfo';
+import api from '../utils/api'; // apiをインポート
 
 const ChannelView = () => {
   const { channelId } = useParams();
@@ -14,8 +15,39 @@ const ChannelView = () => {
     setCurrentChannel,
     joinChannel,
     leaveChannel,
-    loading
+    loading: appLoading
   } = useApp();
+  
+  // ローカルのローディング状態を追加
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // チャンネル情報を直接ここで取得
+  useEffect(() => {
+    const fetchChannel = async () => {
+      if (!channelId) return;
+      
+      try {
+        setLoading(true);
+        const response = await api.get(`/api/channels/${channelId}`);
+        console.log('チャンネル取得成功:', response.data); // デバッグ用
+        setCurrentChannel(response.data);
+      } catch (err) {
+        console.error('チャンネル取得エラー:', err);
+        setError('チャンネルの読み込みに失敗しました');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchChannel();
+    
+    // クリーンアップ
+    return () => {
+      // コンポーネントのアンマウント時にチャンネルをリセット
+      setCurrentChannel(null);
+    };
+  }, [channelId, setCurrentChannel]);
 
   // チャンネル参加/退出
   useEffect(() => {
@@ -26,13 +58,19 @@ const ChannelView = () => {
     return () => {
       if (channelId) {
         leaveChannel(channelId);
-        setCurrentChannel(null);
       }
     };
-  }, [channelId, joinChannel, leaveChannel, setCurrentChannel]);
+  }, [channelId, joinChannel, leaveChannel]);
 
-  if (loading) {
+  // ChatAreaコンポーネントでの二重取得を防ぐために修正済みかのフラグを渡す
+  const isChannelFetched = !!currentChannel;
+  
+  if (loading || appLoading) {
     return <div className="loading">チャンネルを読み込んでいます...</div>;
+  }
+
+  if (error) {
+    return <div className="error">{error}</div>;
   }
 
   return (
@@ -44,7 +82,10 @@ const ChannelView = () => {
           </div>
           
           <div className="channel-content">
-            <ChatArea initialMessageId={messageId} />
+            <ChatArea 
+              initialMessageId={messageId} 
+              isChannelFetched={isChannelFetched} 
+            />
           </div>
         </>
       ) : (

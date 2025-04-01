@@ -89,4 +89,13 @@ const setupSocket = (socketIo) => {
   return io;
 };
 
-module.exports = { setupSocket, get io() { return io; } };
+// 初期化済みのioオブジェクトを安全に取得する関数
+const getIO = () => {
+  if (!io) {
+    console.warn('Socket.IO has not been initialized yet');
+    return null;
+  }
+  return io;
+};
+
+module.exports = { setupSocket, getIO };

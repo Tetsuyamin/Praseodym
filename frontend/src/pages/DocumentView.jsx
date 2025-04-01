@@ -55,12 +55,27 @@ const DocumentView = () => {
   // ページ情報の取得
   useEffect(() => {
     const fetchPage = async () => {
-      if (!pageId || pageId === 'new') return;
-      
+      if (!pageId || pageId === 'new') {
+        setLoading(false);
+        setEditMode(true);
+        return;
+      }
+  
       try {
-        const response = await api.get(`/api/pages/${pageId}`);
-        setPage(response.data);
-        setCurrentPage(response.data);
+        // ObjectIdかどうかを簡易判定（24桁の16進数文字列）
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(pageId);
+        
+        if (isObjectId) {
+          // 通常のページID指定の場合
+          const response = await api.get(`/api/pages/${pageId}`);
+          setPage(response.data);
+          setCurrentPage(response.data);
+        } else {
+          // ページIDがスペースキーとして指定された場合の処理
+          console.log('PageIDがObjectIDではありません。スペースのホームページを取得します');
+          // スペースのホームページを取得するAPIが必要
+          // この例では省略しますが、実際はスペースのデフォルトページを取得する処理を実装
+        }
         
         // コメントIDが指定されている場合はコメントを表示
         if (commentId) {
@@ -76,6 +91,8 @@ const DocumentView = () => {
         }
       } catch (err) {
         console.error('ページ取得エラー:', err);
+      } finally {
+        setLoading(false);
       }
     };
     

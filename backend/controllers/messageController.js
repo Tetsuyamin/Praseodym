@@ -2,7 +2,7 @@ const Message = require('../models/Message');
 const Channel = require('../models/Channel');
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
-const { io } = require('../utils/socket');
+const { getIO } = require('../utils/socket');
 
 // @desc    メッセージを送信
 // @route   POST /api/messages
@@ -21,57 +21,72 @@ const sendMessage = asyncHandler(async (req, res) => {
     throw new Error('チャンネルIDは必須です');
   }
 
-  // チャンネルの存在確認
-  const channel = await Channel.findById(channelId);
-  if (!channel) {
-    res.status(404);
-    throw new Error('チャンネルが見つかりません');
-  }
-
-  // メンバーシップ確認
-  if (channel.isPrivate && !channel.members.includes(req.user.id)) {
-    res.status(403);
-    throw new Error('このチャンネルにアクセスする権限がありません');
-  }
-
-  // スレッドの存在確認（もしあれば）
-  if (threadId) {
-    const thread = await Message.findById(threadId);
-    if (!thread) {
+  try {
+    // チャンネルの存在確認
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
       res.status(404);
-      throw new Error('スレッドが見つかりません');
+      throw new Error('チャンネルが見つかりません');
     }
-  }
 
-  // メッセージの作成
-  const message = await Message.create({
-    content,
-    sender: req.user.id,
-    channel: channelId,
-    thread: threadId || null,
-    mentions: mentions || [],
-    attachments: attachments || []
-  });
+    // メンバーシップ確認
+    if (channel.isPrivate && !channel.members.includes(req.user.id)) {
+      res.status(403);
+      throw new Error('このチャンネルにアクセスする権限がありません');
+    }
 
-  // ポピュレート
-  const populatedMessage = await Message.findById(message._id)
-    .populate('sender', 'username displayName avatar')
-    .populate('mentions', 'username displayName');
+    // スレッドの存在確認（もしあれば）
+    if (threadId) {
+      const thread = await Message.findById(threadId);
+      if (!thread) {
+        res.status(404);
+        throw new Error('スレッドが見つかりません');
+      }
+    }
 
-  // WebSocketを通じてリアルタイム通知
-  io.to(`channel:${channelId}`).emit('newMessage', populatedMessage);
-
-  // メンションされたユーザーに通知
-  if (mentions && mentions.length > 0) {
-    mentions.forEach(userId => {
-      io.to(`user:${userId}`).emit('mention', {
-        message: populatedMessage,
-        channel: channel
-      });
+    // メッセージの作成
+    const message = await Message.create({
+      content,
+      sender: req.user.id,
+      channel: channelId,
+      thread: threadId || null,
+      mentions: mentions || [],
+      attachments: attachments || []
     });
-  }
 
-  res.status(201).json(populatedMessage);
+    // ポピュレート
+    const populatedMessage = await Message.findById(message._id)
+      .populate('sender', 'username displayName avatar')
+      .populate('mentions', 'username displayName');
+
+    // WebSocketを通じてリアルタイム通知
+    try {
+      const io = getIO();
+      if (io) {
+        // チャンネルへの通知
+        io.to(`channel:${channelId}`).emit('newMessage', populatedMessage);
+
+        // メンションされたユーザーに通知
+        if (mentions && mentions.length > 0) {
+          mentions.forEach(userId => {
+            io.to(`user:${userId}`).emit('mention', {
+              message: populatedMessage,
+              channel: channel
+            });
+          });
+        }
+      }
+    } catch (socketErr) {
+      console.error('WebSocket notification error:', socketErr);
+      // ソケット通知の失敗はAPIレスポンスに影響させない
+    }
+
+    res.status(201).json(populatedMessage);
+  } catch (err) {
+    console.error('Message sending error:', err);
+    res.status(500).json({ message: err.message });
+    return;
+  }
 });
 
 // @desc    チャンネルのメッセージを取得
