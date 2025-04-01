@@ -25,7 +25,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const token = getToken();
-      const socketInstance = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
+      const socketInstance = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
         auth: {
           token
         }
