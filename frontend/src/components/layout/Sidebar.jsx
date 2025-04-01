@@ -44,10 +44,6 @@ const Sidebar = () => {
     <aside className="sidebar">
       <div className="sidebar-header">
         <h1 className="app-logo">Praseodym</h1>
-        <div className="user-info">
-          <img src={user?.avatar} alt={user?.displayName} className="avatar avatar-sm" />
-          <span className="user-name">{user?.displayName}</span>
-        </div>
       </div>
 
       <div className="sidebar-tabs">

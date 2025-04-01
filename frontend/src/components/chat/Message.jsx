@@ -67,8 +67,13 @@ const Message = ({
   // リアクション追加
   const handleAddReaction = async (emoji) => {
     try {
+      // 絵文字オブジェクトの形式を正規化
+      const emojiValue = typeof emoji === 'string' 
+        ? emoji 
+        : (emoji.native || emoji);
+      
       const response = await api.post(`/api/messages/${message._id}/reactions`, {
-        emoji: emoji.native
+        emoji: emojiValue
       });
       
       onUpdate(response.data);

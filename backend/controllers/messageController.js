@@ -238,7 +238,15 @@ const updateMessage = asyncHandler(async (req, res) => {
     });
 
   // WebSocketを通じてリアルタイム通知
-  io.to(`channel:${message.channel}`).emit('messageUpdated', updatedMessage);
+  try { // エラーハンドリングを追加
+    const io = getIO(); // io を getIO() で取得
+    if (io) {
+      io.to(`channel:${message.channel}`).emit('messageUpdated', updatedMessage);
+    }
+  } catch (socketErr) {
+    console.error('WebSocket notification error in updateMessage:', socketErr);
+  }
+
 
   res.json(updatedMessage);
 });
@@ -271,7 +279,14 @@ const deleteMessage = asyncHandler(async (req, res) => {
   }
 
   // WebSocketを通じてリアルタイム通知
-  io.to(`channel:${message.channel}`).emit('messageDeleted', { id });
+  try { // エラーハンドリングを追加
+    const io = getIO(); // io を getIO() で取得
+    if (io) {
+      io.to(`channel:${message.channel}`).emit('messageDeleted', { id });
+    }
+  } catch (socketErr) {
+    console.error('WebSocket notification error in deleteMessage:', socketErr);
+  }
 
   res.json({ message: 'メッセージが削除されました' });
 });
@@ -340,7 +355,14 @@ const addReaction = asyncHandler(async (req, res) => {
     });
 
   // WebSocketを通じてリアルタイム通知
-  io.to(`channel:${message.channel}`).emit('messageReaction', updatedMessage);
+  try { // エラーハンドリングを追加
+    const io = getIO(); // io を getIO() で取得
+    if (io) {
+      io.to(`channel:${message.channel}`).emit('messageReaction', updatedMessage);
+    }
+  } catch (socketErr) {
+    console.error('WebSocket notification error in addReaction:', socketErr);
+  }
 
   res.json(updatedMessage);
 });

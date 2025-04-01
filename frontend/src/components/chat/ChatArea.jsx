@@ -24,22 +24,42 @@ const ChatArea = ({ initialMessageId, isChannelFetched = false }) => {
 
   // チャンネル情報の取得 (親コンポーネントで取得済みの場合はスキップ)
   useEffect(() => {
-    const fetchChannel = async () => {
-      if (!channelId || isChannelFetched) return;
+    const fetchMessages = async () => {
+      if (!channelId) return;
       
+      setLoading(true);
       try {
-        console.log('ChatAreaでチャンネル情報を取得します'); // デバッグ用
-        const response = await api.get(`/api/channels/${channelId}`);
-        console.log('ChatArea: チャンネル取得成功', response.data); // デバッグ用
-        setCurrentChannel(response.data);
+        console.log('メッセージ取得開始: チャンネルID =', channelId);
+        const response = await api.get(`/api/messages/channel/${channelId}`, {
+          params: { page, limit: 50 }
+        });
+        
+        const { messages: newMessages, pagination } = response.data;
+        console.log('メッセージ取得成功', newMessages.length);
+        
+        // 古いメッセージから新しいメッセージの順に並べる
+        const orderedMessages = [...newMessages].reverse();
+        
+        if (page === 1) {
+          setMessages(orderedMessages);
+        } else {
+          // 追加の古いメッセージは前に追加
+          setMessages(prev => [...orderedMessages, ...prev]);
+        }
+        
+        setHasMore(page < pagination.pages);
       } catch (err) {
-        console.error('ChatArea: チャンネル取得エラー:', err);
-        setError('チャンネルの読み込みに失敗しました');
+        console.error('メッセージ取得エラー:', err);
+        setError('メッセージの読み込みに失敗しました');
+      } finally {
+        setLoading(false);
       }
     };
-
-    fetchChannel();
-  }, [channelId, setCurrentChannel, isChannelFetched]);
+  
+    if (currentChannel) {
+      fetchMessages();
+    }
+  }, [channelId, page, currentChannel]);
 
   // メッセージの取得
   useEffect(() => {
@@ -78,7 +98,7 @@ const ChatArea = ({ initialMessageId, isChannelFetched = false }) => {
 
   // 新しいメッセージの追加
   const handleNewMessage = (message) => {
-    setMessages(prev => [message, ...prev]);
+    setMessages(prev => [...prev, message]);
   };
 
   // メッセージの更新

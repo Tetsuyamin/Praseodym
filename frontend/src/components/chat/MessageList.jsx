@@ -51,11 +51,41 @@ const MessageList = ({
       groups[date].push(message);
     });
     
+    // 日付ごとにメッセージを時系列順にソート
+    Object.keys(groups).forEach(date => {
+      groups[date].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    });
+    
     return groups;
   };
 
   const messageGroups = groupMessagesByDate();
 
+  // 日付グループも古い順に表示する
+  const renderMessageGroups = () => {
+    const groups = groupMessagesByDate();
+    const sortedDates = Object.keys(groups).sort((a, b) => new Date(a) - new Date(b));
+    
+    return sortedDates.map(date => (
+      <div key={date} className="message-date-group">
+        <div className="date-divider">
+          <span className="date-label">{date}</span>
+        </div>
+        
+        {groups[date].map(message => (
+          <Message
+            key={message._id}
+            message={message}
+            onOpenThread={onOpenThread}
+            onUpdate={onUpdateMessage}
+            onDelete={onDeleteMessage}
+          />
+        ))}
+      </div>
+    ));
+  };
+
+  // レンダリング部分の変更例
   return (
     <div className="message-list" ref={messagesContainerRef}>
       {loading && messages.length === 0 && (
@@ -74,23 +104,7 @@ const MessageList = ({
         </div>
       )}
       
-      {Object.entries(messageGroups).map(([date, messagesGroup]) => (
-        <div key={date} className="message-date-group">
-          <div className="date-divider">
-            <span className="date-label">{date}</span>
-          </div>
-          
-          {messagesGroup.map(message => (
-            <Message
-              key={message._id}
-              message={message}
-              onOpenThread={onOpenThread}
-              onUpdate={onUpdateMessage}
-              onDelete={onDeleteMessage}
-            />
-          ))}
-        </div>
-      ))}
+      {renderMessageGroups()}
       
       <div ref={messagesEndRef} />
     </div>

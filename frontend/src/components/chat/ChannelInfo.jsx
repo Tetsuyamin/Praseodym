@@ -103,10 +103,8 @@ const ChannelInfo = ({ channel }) => {
     <div className="channel-info">
       <div className="channel-basic-info">
         <h2 className="channel-name">
-          <span className="channel-icon">
-            {channel.isPrivate ? '🔒' : '#'}
+          <span className="channel-icon">{channel.isPrivate ? '🔒' : '#'} {channel.name}
           </span>
-          {channel.name}
         </h2>
         
         <Button
